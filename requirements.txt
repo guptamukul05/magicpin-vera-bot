@@ -1,0 +1,16 @@
+# bot.py itself needs ZERO third-party packages (stdlib http.server + urllib only).
+# This file exists for two optional, non-default paths:
+#
+#   1. `pip install -r requirements.txt` before using docs/fastapi_adapter.py
+#      (a FastAPI/uvicorn port of bot.py — see that file's docstring).
+#   2. Convenience on hosts (Render/Railway/Fly/Docker) that expect a
+#      requirements.txt to exist even if empty, and for `pytest` if you'd
+#      rather run the test suite that way than with `python3 -m unittest`.
+#
+# None of these are required to run `python3 bot.py` or
+# `python3 scripts/generate_submission.py`.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+pytest==8.3.3

@@ -1,0 +1,15 @@
+services:
+  vera-bot:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - PORT=8080
+      - HOST=0.0.0.0
+      - VERA_USE_LLM=${VERA_USE_LLM:-0}
+      - VERA_LLM_PROVIDER=${VERA_LLM_PROVIDER:-anthropic}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - VERA_TEAM_NAME=${VERA_TEAM_NAME:-Team Vera-Plus-Plus}
+      - VERA_CONTACT_EMAIL=${VERA_CONTACT_EMAIL:-team@example.com}
+    restart: unless-stopped

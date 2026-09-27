@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: magicpin-vera-bot
+    env: python
+    plan: free
+    buildCommand: "echo 'no build step needed — stdlib only'"
+    startCommand: "python3 bot.py"
+    envVars:
+      - key: PORT
+        value: 8080
+      - key: VERA_USE_LLM
+        value: "0"
+      - key: VERA_TEAM_NAME
+        value: "MukulJiit"
+      - key: VERA_TEAM_MEMBERS
+        value: "Mukul Gupta"
+      - key: VERA_CONTACT_EMAIL
+        value: "mukulg85955@gmail.com"
+    healthCheckPath: /v1/healthz
