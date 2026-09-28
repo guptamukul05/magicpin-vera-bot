@@ -1,18 +1,3 @@
-#!/usr/bin/env bash
-# scripts/run_judge_simulator.sh — configure + run the provided judge_simulator.py
-# against a bot that's already running (locally or deployed).
-#
-# Usage:
-#   BOT_URL=http://localhost:8080 LLM_PROVIDER=anthropic LLM_API_KEY=sk-ant-... \
-#     ./scripts/run_judge_simulator.sh [scenario]
-#
-# scenario defaults to "all" (warmup + auto_reply_hell + intent_transition + hostile).
-# Other options: warmup | phase2_short | auto_reply_hell | intent_transition | hostile | full_evaluation
-#
-# judge_simulator.py's LLM-scored dimensions (specificity/category-fit/etc.)
-# need a real LLM_API_KEY for the *judge's own reasoning* — this is separate
-# from and unrelated to whether your bot itself uses an LLM (it doesn't, by
-# default — composer.py is rule-based).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

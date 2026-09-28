@@ -1,37 +1,3 @@
-#!/usr/bin/env python3
-"""
-bot.py — magicpin AI Challenge submission ("Vera, but better").
-
-Two contracts satisfied by this single file:
-
-  1. OFFLINE contract (challenge-brief.md section 7.1):
-         from bot import compose
-         compose(category: dict, merchant: dict, trigger: dict, customer: dict|None) -> dict
-     Deterministic, <30s, no side effects. Used directly by
-     scripts/generate_submission.py to produce submission.jsonl.
-
-  2. LIVE HTTP contract (challenge-testing-brief.md section 2):
-         GET  /v1/healthz
-         GET  /v1/metadata
-         POST /v1/context
-         POST /v1/tick
-         POST /v1/reply
-         POST /v1/teardown   (optional, section 11 — wipes state at test end)
-     Run with:  python3 bot.py            (defaults to 0.0.0.0:8080)
-                PORT=8080 python3 bot.py
-
-Zero external dependencies — stdlib `http.server` only. This is a
-deliberate engineering choice (see README.md "Why no FastAPI"): the judge
-harness and judge_simulator.py both talk plain JSON-over-HTTP, and a
-stdlib server means `python3 bot.py` works on literally any machine with
-Python 3.9+, with no `pip install` step, no dependency drift, and no cold
-start. requirements.txt / Dockerfile are provided anyway for teams that
-prefer a conventional deploy (Render/Railway/Fly/etc.) or want to swap in
-FastAPI — composer.py and reply_engine.py have no framework coupling, so
-they drop straight into a FastAPI app if you'd rather (see
-docs/fastapi_adapter.py for a 40-line example).
-"""
-
 from __future__ import annotations
 
 import json
@@ -144,8 +110,6 @@ def handle_tick(body: dict) -> dict:
             continue  # never compose without both required contexts
         candidates.append((trigger.get("urgency", 1), trigger, category, merchant, customer, suppression_key))
 
-    # Prioritize by urgency (5 = most urgent) so the 20-action cap keeps the
-    # highest-value sends when there's more available than budget allows.
     candidates.sort(key=lambda c: c[0], reverse=True)
 
     actions = []

@@ -1,11 +1,3 @@
-"""
-tests/test_integration.py — end-to-end smoke test against a live bot.py
-server, mirroring what judge_simulator.py + the real judge harness do
-(minus the LLM-scored parts, which need an API key). Pure stdlib.
-
-Run:  python3 tests/test_integration.py
-"""
-
 import json
 import os
 import subprocess

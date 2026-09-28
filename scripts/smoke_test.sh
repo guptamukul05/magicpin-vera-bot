@@ -1,6 +1,3 @@
-#!/usr/bin/env bash
-# scripts/smoke_test.sh — full pre-flight check, zero external dependencies.
-# Run this before you deploy / submit. Exits non-zero on any failure.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

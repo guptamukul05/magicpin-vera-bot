@@ -1,29 +1,4 @@
-"""
-state_store.py — thread-safe in-memory state for the bot.
 
-Two stores:
-
-  ContextStore
-      Holds the 4 context types (category / merchant / customer / trigger),
-      keyed by (scope, context_id), versioned per challenge-testing-brief.md
-      section 2.1. Idempotent on (context_id, version); higher version wins;
-      re-posting the same-or-lower version is a documented no-op.
-
-  ConversationStore
-      Tracks in-flight conversations: every body we've ever sent in a
-      conversation (for anti-repetition, testing-brief section 10), the
-      inbound message history (for auto-reply streak detection), how many
-      consecutive un-replied nudges have gone out (for graceful-exit,
-      challenge-brief.md section 12 item 5), and whether the conversation
-      has been ended.
-
-Both are protected by a single RLock. The bot is expected to run as a
-single process (per testing-brief section 2.1: "Storing in memory is fine;
-just don't restart between calls") so this is sufficient — no Redis/DB
-required for the challenge, though `context_pushes.jsonl`-style durability
-would be the natural next step for production (see README "What I'd add
-with more time").
-"""
 
 from __future__ import annotations
 

@@ -1,21 +1,4 @@
 #!/usr/bin/env python3
-"""
-scripts/generate_submission.py
-
-Loads the expanded dataset (dataset/expanded/, produced by
-dataset/generate_dataset.py) and the canonical 30 test_pairs.json, calls
-bot.compose() for each pair, and writes submission.jsonl in exactly the
-shape challenge-brief.md section 7.2 asks for:
-
-    {"test_id": "T01", "body": "...", "cta": "...", "send_as": "...",
-     "suppression_key": "...", "rationale": "..."}
-
-Run:
-    python3 scripts/generate_submission.py
-        [--expanded-dir expanded] [--out submission.jsonl]
-
-This is pure offline composition — no HTTP server needs to be running.
-"""
 
 from __future__ import annotations
 

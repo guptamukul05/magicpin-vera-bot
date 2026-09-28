@@ -1,5 +1,3 @@
-#!/usr/bin/env bash
-# scripts/run_local.sh — start the bot locally on :8080 (override with PORT=xxxx).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PORT="${PORT:-8080}"

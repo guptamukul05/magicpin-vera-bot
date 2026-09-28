@@ -1,36 +1,4 @@
-"""
-conversation_handlers.py — optional offline multi-turn contract
-(challenge-brief.md section 7.4):
 
-    def respond(state: ConversationState, merchant_message: str) -> dict
-
-This is a thin adapter over the same reply_engine.build_reply() used by the
-live HTTP /v1/reply endpoint in bot.py, so behavior is identical between the
-offline judge replay and the live harness replay (Phase 4 in
-challenge-testing-brief.md) — there is exactly one implementation of "how
-the bot handles a reply", not two that could drift apart.
-
-`ConversationState` here is a plain, judge-friendly dict/dataclass carrying
-whatever the judge already has on hand: the merchant/category/trigger/
-customer dicts it loaded from the dataset, plus the turn history so far.
-Nothing about this shape is required by the brief beyond "the conversation
-so far" — we've made it maximally permissive (dict OR dataclass, and every
-field optional except a place to accumulate history) so a judge harness
-following the brief literally can drop its own state shape in with minimal
-glue.
-
-Usage
------
-    from conversation_handlers import ConversationState, respond
-
-    state = ConversationState(
-        merchant=merchant_dict, category=category_dict,
-        trigger=trigger_dict, customer=customer_dict,
-    )
-    turn1 = respond(state, "Thank you for contacting us! Our team will respond shortly.")
-    turn2 = respond(state, "Thank you for contacting us! Our team will respond shortly.")
-    # turn2["action"] == "end"  (auto-reply pattern caught within 2 turns)
-"""
 
 from __future__ import annotations
 
@@ -43,9 +11,7 @@ from state_store import ConversationState as _InternalConvState
 
 @dataclass
 class ConversationState:
-    """Judge-facing conversation state. Mutated in place across calls to
-    `respond()`, exactly like the live bot's in-memory ConversationStore."""
-
+    
     merchant: Optional[dict] = None
     category: Optional[dict] = None
     trigger: Optional[dict] = None
@@ -83,14 +49,7 @@ class ConversationState:
 
 
 def respond(state: "ConversationState | Dict[str, Any]", merchant_message: str) -> dict:
-    """Given the conversation so far + the latest inbound message, produce
-    the bot's next move. Returns a dict with keys: action ("send"|"wait"|"end"),
-    body, cta, rationale, wait_seconds (only for "wait").
-
-    Mutates `state` in place (appends to history, updates strike counters) so
-    the same object can be threaded through consecutive calls, mirroring how
-    the live bot's ConversationStore persists across HTTP calls.
-    """
+   
     st = _coerce_state(state)
     internal = st._as_internal()
 

@@ -1,32 +1,4 @@
-"""
-llm_client.py — optional LLM call, stdlib-only (no SDK dependency).
 
-Design decision (see README.md "Approach" for the full rationale):
-
-  The composer (composer.py) is 100% rule/template based and produces a
-  complete, spec-compliant, deterministic message on its own — with ZERO
-  external dependencies and ZERO network calls. That is the bot's
-  guaranteed baseline and is what runs by default.
-
-  If VERA_USE_LLM=1 is set (and an API key is present for the selected
-  VERA_LLM_PROVIDER), the composer additionally asks an LLM to *rewrite*
-  the deterministic draft for more natural phrasing, while being
-  instructed to preserve every fact already present and add nothing new
-  (this keeps the "don't fabricate" constraint intact — see
-  challenge-brief.md section 5, constraint #8). temperature=0 is used
-  throughout so output stays deterministic given the same inputs, as
-  required by the submission contract (challenge-brief.md section 7.1).
-
-  If the LLM call fails for any reason (no key, network error, timeout,
-  malformed response) we silently fall back to the deterministic draft.
-  The bot must never 500 or blow the 30s budget because an LLM had a bad
-  day — testing-brief.md section 5 gives us a firm per-call timeout.
-
-Supported providers (set VERA_LLM_PROVIDER): "anthropic" (default model
-claude-sonnet-4-6), "openai" (default gpt-4o-mini). Both are called via raw
-HTTPS + urllib, exactly like judge_simulator.py does, so no pip install is
-required to use this feature either.
-"""
 
 from __future__ import annotations
 
@@ -46,10 +18,7 @@ def _provider() -> str:
 
 
 def rewrite_with_llm(draft_body: str, system_prompt: str, facts_prompt: str) -> str | None:
-    """Ask the configured LLM to polish `draft_body`. Returns the rewritten
-    body, or None if the LLM is disabled / unavailable / fails for any reason
-    (caller must fall back to `draft_body` in that case).
-    """
+    
     if not llm_enabled():
         return None
 

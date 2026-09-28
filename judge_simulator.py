@@ -1,24 +1,6 @@
-#!/usr/bin/env python3
-"""
-magicpin AI Challenge — LLM-Powered Judge Simulator
-====================================================
 
-A strict but fair judge that scores your bot and explains WHY.
-
-HOW TO USE:
-1. Edit the CONFIGURATION section below (lines 25-45)
-2. Set your LLM provider and API key
-3. Set your bot URL
-4. Run: python judge_simulator.py
-
-That's it!
-
-Author: magicpin AI Challenge Team
-"""
-
-# =============================================================================
 # ██████  CONFIGURATION - EDIT THIS SECTION ██████
-# =============================================================================
+
 
 # Your bot's URL (where your bot is running)
 BOT_URL = "http://localhost:8080"
@@ -38,9 +20,9 @@ OLLAMA_URL = "http://localhost:11434"
 # Which test to run by default
 TEST_SCENARIO = "all"
 
-# =============================================================================
+
 # ██████  END OF CONFIGURATION - DON'T EDIT BELOW THIS LINE ██████
-# =============================================================================
+
 
 import os
 import sys
@@ -59,9 +41,9 @@ from abc import ABC, abstractmethod
 TIMEOUT_LLM = 45
 DATASET_DIR = Path(__file__).parent / "dataset"
 
-# =============================================================================
+
 # TERMINAL OUTPUT
-# =============================================================================
+
 
 class Colors:
     HEADER = '\033[95m'

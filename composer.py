@@ -1,39 +1,3 @@
-"""
-composer.py — the heart of the bot: compose(category, merchant, trigger, customer?) -> message.
-
-This module is pure Python, stdlib-only, and 100% deterministic (no network
-calls unless VERA_USE_LLM=1 — see llm_client.py). It implements the
-composition contract from challenge-brief.md section 5:
-
-    def compose(category, merchant, trigger, customer=None) -> ComposedMessage:
-        body, cta, send_as, suppression_key, rationale
-
-Design, in one paragraph
--------------------------
-Rather than one giant LLM prompt asked to improvise, this composer is a
-**routing layer + template-per-trigger-kind engine**, exactly the approach
-the brief itself recommends in section 13 ("different trigger kinds may
-want different prompt variants"). Every trigger `kind` we've seen in the
-dataset (30 distinct kinds across the seeds + the expanded generator) has a
-dedicated handler that knows which fields of which context matter for that
-kind, and builds a message out of ONLY those fields — so it can never
-fabricate data (constraint #8) and always explains "why now" (the
-trigger-relevance rubric dimension). A generic fallback handler covers any
-kind we haven't special-cased (including the placeholder-payload kinds the
-dataset generator produces), degrading gracefully to whatever real data is
-available on the merchant/category rather than inventing anything.
-
-A small phrase-bank gives each category (dentists/salons/restaurants/
-gyms/pharmacies) its own voice, per the category `voice.tone` field, and
-gives each message an English or Hindi-English-mix register depending on
-the merchant's declared languages / the live conversation (see
-`utils.resolve_voice_language`).
-
-Compulsion levers (challenge-brief.md section 10) are attached per-kind:
-each handler picks 1-3 levers appropriate to that trigger (e.g.
-research_digest -> curiosity + reciprocity; competitor_opened -> loss
-aversion + specificity; milestone_reached -> social proof).
-"""
 
 from __future__ import annotations
 
@@ -44,13 +8,7 @@ from typing import Any, Dict, List, Optional
 
 from utils import first_name, pct, pct_abs, resolve_voice_language
 
-# ---------------------------------------------------------------------------
-# Small phrase bank: connective tissue in English vs Hindi-English code-mix.
-# Facts themselves (numbers, names, dates) are NEVER translated/altered —
-# only the connective wrapper changes, which keeps every claim traceable to
-# the source context (no fabrication) while giving natural code-mix register
-# for merchants who prefer it (challenge-brief.md section 5, constraint #7).
-# ---------------------------------------------------------------------------
+
 
 PHRASES = {
     "en": {

@@ -1,43 +1,4 @@
-"""
-reply_engine.py — turns an inbound merchant/customer message into the bot's
-next move: send / wait / end.
 
-This is the shared brain behind both:
-  - bot.py's POST /v1/reply  (the live HTTP contract, testing-brief.md 2.3)
-  - conversation_handlers.py's respond(state, merchant_message)  (the
-    offline multi-turn contract, challenge-brief.md 7.4)
-
-It directly targets the 3 replay scenarios in testing-brief.md Phase 4 and
-the open challenges in challenge-brief.md section 12:
-
-  1. Auto-reply hell      -> classify_reply_kind() catches signature text
-                              on the first canned reply, and verbatim-repeat
-                              streaks from turn 2 on either way.
-  2. Intent transition    -> switches straight to action-mode phrasing,
-                              never re-asks a qualifying question (the
-                              explicit anti-pattern in challenge-brief.md
-                              Pattern D).
-  3. Hostile / off-topic  -> de-escalates once, stays on-mission, and only
-                              ends the conversation if hostility repeats or
-                              the merchant explicitly opts out.
-
-Decision table
---------------
-classification        -> action                          -> ends convo?
----------------------    ------------------------------     -----------
-auto_reply (1st time)  -> send a single human-escalation     no
-                           probe ("want to check yourself?")
-auto_reply (2nd+ time) -> end, polite exit                    yes
-hostile (1st time)     -> send a short apology/de-escalation  no
-hostile (2nd time)     -> end, polite exit                    yes
-not_interested         -> end, polite exit immediately        yes
-off_topic_question     -> send a polite redirect back to      no
-                           the merchant's actual account
-intent_transition      -> send, action-mode framing using     no
-                           real next-step data if available
-genuine                -> send, advances the conversation     no
-                           using real context if available
-"""
 
 from __future__ import annotations
 
