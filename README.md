@@ -1,206 +1,151 @@
-# Vera, but better — magicpin AI Challenge submission
+# Vera Bot — AI Assistant for Local Business Engagement
 
-> "Building the bot is easy. Building one a merchant actually wants to
-> engage with is the hard part — that's the filter."
-
-This repo is a complete, tested, deployable answer to that filter: a bot
-that composes specific, non-generic, trigger-grounded WhatsApp messages for
-5 merchant categories, handles multi-turn replies (including the three
-"replay" failure modes the challenge calls out — auto-reply hell, intent
-transitions, hostile/off-topic messages), and does all of it with **zero
-required external dependencies**.
-
-**Start here if you just want to run it:** [`RUNBOOK.md`](./RUNBOOK.md) has
-every command from `git clone` to a public URL to a submitted
-`submission.jsonl`, in order.
-
-This file explains the *why* behind the code.
+A chat-based assistant that helps local businesses (clinics, salons, restaurants, gyms, pharmacies) stay engaged with their own customers — by turning day-to-day business signals into short, specific, WhatsApp-ready messages instead of generic marketing blasts.
 
 ---
 
-## 1. What's in this repo
+## Basic Idea
+
+Most small businesses don't lack marketing advice — they lack *time*. Owners are busy running the actual business and rarely act on generic tips like "post more" or "run a discount."
+
+This project is a bot that watches for real, concrete triggers happening around a business — a performance dip, a competitor opening nearby, a customer's recall coming due, a seasonal trend, a subscription about to lapse — and turns each one into a short, natural message that's specific enough to actually act on.
+
+The bot talks in two directions:
+- **To the merchant**, nudging them about something real and timely happening in their business.
+- **On behalf of the merchant, to their customers**, handling recalls, win-backs, appointment reminders, and follow-ups.
+
+---
+
+## Problem Statement
+
+Build an AI assistant that:
+
+1. Composes short, high-quality business messages by combining four layers of context — the business's category, the specific merchant's profile and performance, the customer being messaged (if any), and the trigger event that caused the message to be sent.
+2. Sounds like it belongs to that category and that merchant — a dentist's clinic and a salon shouldn't sound the same, and the bot shouldn't fabricate offers, prices, or claims that aren't actually true for that business.
+3. Can hold a real conversation, not just send one message — including handling replies, detecting when it's talking to an auto-responder instead of a human, recognizing when a merchant is ready to act, and knowing when to stop messaging.
+4. Can run as a live service that receives context pushes and produces message decisions in real time, not just a one-off script.
+
+The hard part isn't generating *a* message — it's generating one a busy business owner would actually read, believe, and act on, without sounding like spam.
+
+---
+
+## How I Solved It — Basic Approach
+
+Instead of relying on a single large prompt to improvise a message from scratch every time, I built a **routing engine**: every incoming trigger has a `kind` (performance dip, competitor opened, recall due, milestone reached, and so on), and each kind is handled by a dedicated composer function that knows exactly which pieces of context are relevant to it.
+
+This has one big advantage: because each handler only ever touches the specific fields it needs (a percentage, a date, an offer title, a competitor's name), the bot structurally cannot invent facts that aren't in the data. There's no risk of the bot claiming a discount that doesn't exist or a statistic that was never computed — if the data isn't there, the handler either omits that part of the message or falls back to something it can actually support.
+
+On top of that routing layer sits:
+
+- A **voice layer** that adapts phrasing to the business category (a dental clinic and a gym shouldn't use the same tone) and to the merchant's preferred language, including natural Hindi-English mixing where appropriate.
+- A **conversation layer** that manages multi-turn replies — detecting auto-replies, recognizing when a merchant has effectively said "yes, go ahead," de-escalating hostile or off-topic replies, and gracefully ending conversations that have gone quiet instead of nagging.
+- A **safety layer** that scrubs category-specific "forbidden" claims (like "guaranteed results" for a gym or "miracle cure" for a pharmacy), validates that every fact used in a message actually traces back to real data, and enforces a sensible message-length limit so nothing turns into a wall of text.
+
+An optional language-model pass can be layered on top purely to polish phrasing — but it's off by default, and any output it produces is checked against the same fact-preservation rules before being accepted. If it fails that check, the bot falls back to its own deterministic message. This keeps the bot fully functional and predictable even with zero external API calls.
+
+---
+
+## Features
+
+- **Context-aware composition** across four layers: category, merchant, customer, and trigger.
+- **Trigger-specific message logic** for 25+ distinct real-world situations — performance spikes/dips, seasonal shifts, competitor activity, festivals, compliance/regulatory updates, milestones, subscription renewals, win-backs, recalls, appointment reminders, wedding/package follow-ups, chronic refill reminders, and more.
+- **Category-aware voice** — dentists, salons, restaurants, gyms, and pharmacies each get phrasing and terminology suited to that business type (patients vs. clients vs. guests vs. members).
+- **Bilingual messaging** — natural English and Hindi-English mixed phrasing depending on the merchant's language preference and the live conversation.
+- **Anti-fabrication by design** — messages are built only from fields present in real data; unverifiable comparative claims are avoided, and offers are only referenced when they're actually active.
+- **Taboo-word scrubbing** — automatically neutralizes category-specific claims that shouldn't be made (e.g. "guaranteed," "miracle," "best in city"), with a safety net for anything not explicitly listed.
+- **Smart offer selection** — picks the most relevant active offer for a given situation rather than a random one.
+- **Multi-turn conversation handling**:
+  - Detects canned/auto-reply messages and stops pushing after a human clearly isn't responding.
+  - Recognizes when a merchant has given a go-ahead and switches straight into action mode instead of re-asking questions.
+  - De-escalates hostile messages once, then exits gracefully if it continues.
+  - Ends conversations cleanly after repeated unanswered nudges instead of following up indefinitely.
+- **Message-length and consistency guards** — call-to-action type always matches what's actually in the message, and message length is capped for readability.
+- **Deterministic core** — the bot works fully offline with zero external API calls; a language-model polish pass is entirely optional and validated before use.
+
+---
+
+## Methodology
+
+**1. Context ingestion**
+Four types of context feed the bot: category-level data (peer benchmarks, category voice/tone, seasonal patterns, vocabulary to avoid), merchant profile (identity, active offers, performance metrics, behavioral signals), customer profile (relationship history, preferences), and trigger events (the specific thing that just happened). Each context type is versioned, so stale or duplicate pushes are safely ignored.
+
+**2. Routing by trigger kind**
+When a trigger fires, it's routed to a dedicated handler based on its kind. Each handler is written specifically for that situation — a competitor-opened trigger pulls competitor name, distance, and their offer; a milestone trigger pulls the current value and the target; a recall-due trigger pulls the service due and available slots. Nothing is handled by a generic catch-all unless the trigger kind is genuinely unrecognized, in which case the bot falls back to whatever real signals it does have rather than guessing.
+
+**3. Draft construction**
+Each handler produces a structured draft: an opening hook (the specific fact), optional supporting context (why it matters), and a call-to-action, along with metadata about which persuasion angle is being used (urgency, social proof, curiosity, and so on) and which literal facts must survive into the final message untouched.
+
+**4. Voice and language rendering**
+The draft is rendered into final text using category-specific salutation style and terminology, and a language layer that produces complete, natural sentences in either English or Hindi-English mix — rather than stitching English and Hindi words together mid-sentence.
+
+**5. Safety and consistency pass**
+Before a message is finalized, it goes through taboo-word scrubbing, a call-to-action consistency check (so the labeled CTA type always matches what's actually being asked), and a length guard that trims supporting content before ever cutting into the actual ask.
+
+**6. Optional polish pass**
+If enabled, a language model can rewrite the message for more natural phrasing. The rewrite is only accepted if every required fact is still present and no new numbers or claims have been introduced — otherwise the deterministic version is used as-is.
+
+**7. Conversation state**
+Replies are classified into categories — genuine response, auto-reply, hostile, not interested, ready to act, off-topic — and each is handled with a purpose-built response strategy, with conversation history tracked so the bot never repeats itself and knows when to stop.
+
+---
+
+## Tech Stack
+
+- **Python 3**, standard library only for the core engine — no required third-party dependencies to run the bot.
+- A lightweight built-in HTTP server exposing endpoints for pushing context, triggering proactive sends, handling replies, and health/metadata checks.
+- An optional adapter for FastAPI/uvicorn for teams that prefer a conventional web framework, kept fully decoupled from the core logic.
+- Plain JSON for all data interchange — no database required to run; state is held in memory during the process lifetime.
+
+---
+
+## Project Structure
 
 ```
-bot.py                    Zero-dependency HTTP server: all 5 endpoints from
-                           challenge-testing-brief.md, + the offline
-                           compose() contract from challenge-brief.md §7.1
-composer.py                The composition engine: 30 trigger-kind handlers
-                           + a data-grounded generic fallback
-reply_engine.py             Multi-turn logic: auto-reply / intent / hostile /
-                           not-interested / genuine classification & response
-conversation_handlers.py    Optional offline respond(state, msg) contract
-                           (challenge-brief.md §7.4), thin wrapper over
-                           reply_engine.py so behavior never drifts between
-                           the live and offline paths
-state_store.py              Thread-safe in-memory context + conversation stores
-utils.py                    Auto-reply/intent/hostile/language heuristics
-llm_client.py               Optional, OFF-by-default LLM polish pass (stdlib
-                           urllib only, no SDK)
-
-dataset/                    The seed dataset exactly as provided, unmodified
-expanded/                   Generated output of dataset/generate_dataset.py
-                           (50 merchants / 200 customers / 100 triggers /
-                           30 test pairs) — committed so the repo works
-                           without a generation step, and regeneratable any
-                           time with `make dataset`
-submission.jsonl            Generated by actually running compose() over all
-                           30 canonical test pairs (scripts/generate_submission.py)
-                           — not hand-written, not mocked
-
-tests/                      Unit tests (utils, composer against the full
-                           100-trigger dataset) + an integration test that
-                           spins up the real bot.py server and replays the
-                           auto-reply/intent/hostile scenarios end-to-end
-scripts/                    run_local.sh, smoke_test.sh, generate_submission.py,
-                           run_judge_simulator.sh
-docs/fastapi_adapter.py     Optional FastAPI port, for teams that want it
-
-judge_simulator.py           Provided by magicpin, unmodified
-challenge-brief.md            "
-challenge-testing-brief.md    "
-engagement-design.md          "
-engagement-research.md        "
-examples/                     "
-
-Dockerfile, docker-compose.yml, Procfile, render.yaml, railway.json
-                           Deployment configs (see RUNBOOK.md §3)
-requirements.txt            Only needed for the OPTIONAL FastAPI adapter/pytest
-Makefile                    make test / make run / make submission / etc.
+bot.py                     HTTP server + endpoint handlers
+composer.py                 Core message composition engine
+reply_engine.py              Multi-turn conversation logic
+conversation_handlers.py      Conversation state helpers
+state_store.py                In-memory context & conversation storage
+utils.py                      Language detection & text heuristics
+llm_client.py                  Optional LLM polish pass
+dataset/                       Sample category/merchant/customer/trigger data
+tests/                          Unit and integration tests
+scripts/                        Setup, run, and submission helper scripts
 ```
 
 ---
 
-## 2. Approach
+## Deployment Details
 
-### 2.1 Routing, not one giant prompt
+The bot runs as a single lightweight process with no required external services.
 
-The brief itself hints at this in §13: *"different trigger kinds may want
-different prompt variants."* Rather than stuffing all four context layers
-into one LLM call and hoping for good behavior across 30 very different
-trigger kinds, `composer.py` **routes by `trigger.kind`** to a dedicated
-handler function. Each handler knows exactly which fields of which context
-matter for *that* kind (e.g. `perf_dip` cares about `metric`/`delta_pct`/
-`vs_baseline`; `competitor_opened` cares about `competitor_name`/`distance_km`/
-`their_offer`), and builds a message from **only those fields**. This is
-the single biggest lever against the #1 failure mode called out in the
-brief — generic, fabricated, or irrelevant messages — because a handler
-that only ever touches 3-4 known fields structurally cannot invent a fifth.
+**Run locally**
+```bash
+python3 bot.py
+```
+The server starts on port 8080 by default (configurable via the `PORT` environment variable) and exposes health, metadata, context-push, tick, and reply endpoints over plain HTTP/JSON.
 
-All 30 kinds present in the dataset (both the hand-authored seeds and the
-kinds the generator produces) have a dedicated handler. Anything else —
-including the generator's placeholder-payload triggers
-(`{"placeholder": true, "metric_or_topic": kind}`) — falls through to
-`h_generic_fallback`, which degrades gracefully to the merchant's *real*
-signals/performance data rather than inventing anything about the
-under-specified trigger. This was verified: **all 100 triggers in the
-expanded dataset compose successfully, with zero empty bodies and zero
-fabricated offers** (see `tests/test_composer.py`).
+**Environment configuration**
+Optional environment variables control the LLM polish pass and service metadata:
+```
+VERA_USE_LLM=0                 # 1 to enable optional LLM polish pass
+VERA_LLM_PROVIDER=anthropic    # or openai
+ANTHROPIC_API_KEY / OPENAI_API_KEY
+PORT=8080
+```
 
-### 2.2 Deterministic by default, LLM-optional
+**Containerized deployment**
+A Dockerfile is included for containerized hosting:
+```bash
+docker build -t vera-bot .
+docker run -p 8080:8080 vera-bot
+```
 
-`composer.py` is pure Python — no network call, no API key, nothing to
-install — and produces a complete, spec-compliant message on its own. This
-was a deliberate call, for three reasons:
+**Platform deployment**
+The service is compatible out of the box with any Python-hosting platform (Render, Railway, Fly.io, Heroku-style PaaS, or a bare VM) since it requires no build step and no database — a running Python 3 interpreter is sufficient. Deployment configs for common platforms are included in the repository root.
 
-1. **"Works in one go."** A submission that needs a valid, funded API key
-   to even start is a submission that might not run at all in the judge's
-   environment. `python3 bot.py` with nothing else works.
-2. **Determinism.** §7.1 of the brief requires the offline `compose()` to
-   be deterministic. Temperature-0 LLM calls are *close* to deterministic
-   but not guaranteed to be, especially across provider versions.
-3. **Latency & the 30s budget.** §5 of the testing brief gives 30s per
-   call. A rule engine responds in under a millisecond; that budget is
-   better spent as headroom than eaten by a network round-trip.
-
-If you *do* want richer, more varied prose, set `VERA_USE_LLM=1` (see
-`.env.example`). `llm_client.py` will then ask an LLM to **rewrite** the
-already-correct deterministic draft — explicitly instructed to add no new
-facts and preserve the CTA — so a flaky or slow LLM call degrades to the
-deterministic draft rather than breaking anything. This is the "one or two
-things extra" version of the composer: better prose *without* weakening the
-anti-fabrication guarantee, and with a hard fallback if the call fails.
-
-### 2.3 Handling the "open challenges" (brief §12)
-
-| Challenge | Where | How |
-|---|---|---|
-| 1. Auto-reply detection | `utils.py` `classify_reply_kind`, `reply_engine.py` `_handle_auto_reply` | Turn-1 signature match against known WhatsApp Business canned-reply phrasing (EN + HI) **or** a 3-in-a-row verbatim-repeat streak. First hit → one human-escalation probe. Second hit → graceful exit. Matches "Pattern B" in the brief. |
-| 2. Intent transitions | `utils.py` `is_intent_transition`, `reply_engine.py` `_handle_intent_transition` | Regex bank (EN + roman Hindi: *chalega, theek hai, karo, haan...*) detects a go-ahead and switches straight to action-mode phrasing ("Done — sending X now"), **never** re-asks a qualifying question — this is the explicit anti-pattern D in the brief, and it's asserted against in `tests/test_integration.py`. |
-| 3. Compulsion-lever mismatch by category | `composer.py` `PHRASES`, `_SALUTATION_STYLE`, per-handler `levers` | Every handler tags its 1-3 levers (curiosity, loss-aversion, social-proof, reciprocity, specificity, effort-externalization, "asking the merchant"). Voice (salutation style, taboo-word scrubbing) is read from each category's own `voice` block in the dataset, not hardcoded per-category logic. |
-| 4. Language switching mid-conversation | `utils.resolve_voice_language` | Checks the *live* conversation history first (most recent non-English turn wins), falls back to the merchant's declared `identity.languages`. |
-| 5. Knowing when to stop | `reply_engine.should_stop_nudging`, `ConversationState.unanswered_nudges` | `/v1/tick` skips any conversation that's already had 3 consecutive proactive sends with zero genuine reply. Explicit "not interested"/opt-out language ends a conversation immediately, on any turn. |
-
-### 2.4 Anti-fabrication as a structural property, not a prompt instruction
-
-Because every handler only reads named fields off the real context dicts —
-never free-text-generates a "plausible" fact — there is no fabrication
-surface to guard against with a "don't lie" instruction. The one place this
-needed active enforcement was **taboo vocabulary** (§ each category's
-`voice.vocab_taboo`, e.g. "guaranteed", "miracle", "best in city"): a small
-scrub pass (`composer._scrub_taboo`) replaces any of those phrases that
-*would* slip in if a template happened to reuse them, and `tests/
-test_composer.py::test_taboo_words_scrubbed` asserts zero leakage across
-the full dataset.
-
-### 2.5 Why no FastAPI
-
-`bot.py` runs on Python's stdlib `http.server` (`ThreadingHTTPServer`), not
-FastAPI. This means:
-
-- `python3 bot.py` runs anywhere Python 3.9+ exists, with **no `pip
-  install` step** — nothing to fail, nothing to version-mismatch, no cold
-  start on serverless platforms waiting on a wheel build.
-- `judge_simulator.py` (provided) also only uses `urllib` — the whole
-  stack, judge included, needs nothing beyond the standard library.
-- `composer.py`, `reply_engine.py`, and `state_store.py` have **zero
-  framework coupling** — they're plain functions/classes over plain dicts.
-  If your team prefers FastAPI (nicer OpenAPI docs, familiar request
-  validation), `docs/fastapi_adapter.py` is a ~90-line port that reuses
-  every one of `bot.py`'s handler functions unchanged. `requirements.txt`
-  has the pinned versions for that path.
-
-### 2.6 Extras beyond what was asked (the "+1 or 2 things")
-
-1. **`/v1/teardown`** — not in the required 5 endpoints, but §11 of the
-   testing brief mentions state resets between test runs; this makes that
-   trivial for a judge harness instead of requiring a process restart.
-2. **Full-dataset composer sweep test** — `tests/test_composer.py` doesn't
-   just check the 30 canonical test pairs; it runs `compose()` against
-   **all 100 triggers** in the expanded dataset and asserts no errors, no
-   empty bodies, no fabricated offers, no taboo leakage, no double-CTA
-   messages. This is a much stronger correctness signal than a hand-picked
-   sample.
-3. **A live end-to-end integration test** (`tests/test_integration.py`)
-   that boots the actual server as a subprocess and replays the auto-reply
-   / intent-transition / hostile / not-interested scenarios over real HTTP
-   — the same shape as `judge_simulator.py`'s replay tests — so these are
-   verified before you ever point the real judge at your deployment.
-4. **Optional LLM polish pass** with automatic, silent fallback to the
-   deterministic draft (§2.2 above) — better prose without weakening
-   determinism or the "works in one go" guarantee.
-5. **A FastAPI adapter + Docker/Render/Railway/Procfile configs** — pick
-   whichever deploy path your team already has muscle memory for.
-
----
-
-## 3. Known limitations / what I'd add with more time
-
-- **In-memory only.** State is lost on restart, per the testing brief's own
-  allowance ("storing in memory is fine; just don't restart between
-  calls"). For production I'd back `ContextStore`/`ConversationStore` with
-  Redis or Postgres and add a `context_pushes.jsonl`-style write-ahead log.
-- **Rule-based composer, not a fine-tuned model.** This was the right
-  trade for determinism + zero-dependency reliability within a challenge
-  timebox; a production Vera would likely want a fine-tuned or heavily
-  few-shot-prompted model per category, with this rule engine surviving as
-  the safety-net fallback path (which is exactly how `llm_client.py` is
-  already wired: rule engine first, LLM polish on top, rule engine as the
-  guaranteed fallback).
-- **The generic fallback handler** covers kinds outside the 30 mapped ones
-  reasonably, but a production system would want net-new handlers written
-  (and reviewed for category voice) for any kind that starts firing
-  frequently through that path — it's a safety net, not a long-term home.
-- **No persistence for A/B'd copy variants.** Section 8/13 of the brief
-  raises multi-variant testing (e.g. per-merchant-cohort phrasing tests);
-  the architecture supports adding this (each handler could return N
-  variants instead of 1) but it isn't wired up.
+**Testing**
+```bash
+python3 -m unittest discover tests
+```
+Covers message composition across the full sample dataset, language/heuristic utilities, and end-to-end conversation flows against a running instance of the server.
